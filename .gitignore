@@ -9,3 +9,7 @@ wheels/
 # Virtual environments
 .venv
 .env 
+# Ignore node_modules and vector store
+frontend/node_modules/
+poc/chroma_db/
+.venv/
