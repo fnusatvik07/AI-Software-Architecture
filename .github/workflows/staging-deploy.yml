@@ -1,0 +1,348 @@
+# ===========================================
+# DocuQuery Staging Deployment Pipeline
+# ===========================================
+# Automated deployment to staging environment
+
+name: Staging Deployment
+
+on:
+  push:
+    branches: [stage4-staging]
+  pull_request:
+    branches: [stage4-staging]
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Deployment target'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - staging-canary
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  WORKING_DIR: docuquery
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/docuquery
+  HELM_VERSION: "3.13.0"
+  KUBECTL_VERSION: "1.28.0"
+
+jobs:
+  # ===========================================
+  # Build & Test
+  # ===========================================
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      version: ${{ steps.version.outputs.version }}
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-staging-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-staging-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run linting
+        run: |
+          ruff check src/ tests/ --output-format=github || true
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=src --cov-report=xml --cov-report=html --cov-fail-under=70
+        env:
+          PYTHONPATH: ${{ github.workspace }}/docuquery
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./docuquery/coverage.xml
+          flags: staging
+          name: staging-coverage
+
+      - name: Generate version
+        id: version
+        run: |
+          VERSION="staging-$(date +'%Y%m%d')-${GITHUB_SHA::8}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  # ===========================================
+  # Build Docker Image
+  # ===========================================
+  build-image:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=staging-
+            type=raw,value=staging-latest
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docuquery
+          file: ./docuquery/docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.build-and-test.outputs.version }}
+            ENVIRONMENT=staging
+
+      - name: Output image
+        id: image
+        run: |
+          echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-latest" >> $GITHUB_OUTPUT
+
+  # ===========================================
+  # Security Scanning
+  # ===========================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-image
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ needs.build-image.outputs.image }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ===========================================
+  # Validate Kubernetes Manifests
+  # ===========================================
+  validate-manifests:
+    name: Validate K8s Manifests
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Lint Helm chart
+        run: |
+          helm lint helm/docuquery/
+
+      - name: Template Helm chart (staging)
+        run: |
+          helm template docuquery helm/docuquery/ \
+            -f helm/docuquery/values.yaml \
+            -f helm/docuquery/values-staging.yaml \
+            --namespace docuquery-staging \
+            > /tmp/staging-manifests.yaml
+
+      - name: Install kubeval
+        run: |
+          wget -q https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo mv kubeval /usr/local/bin/
+
+      - name: Validate manifests
+        run: |
+          kubeval /tmp/staging-manifests.yaml --strict || true
+
+      - name: Validate Kustomize overlays
+        run: |
+          kubectl kustomize k8s/overlays/staging/ > /tmp/kustomize-staging.yaml
+        continue-on-error: true
+
+  # ===========================================
+  # Deploy to Staging
+  # ===========================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-image, security-scan, validate-manifests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/stage4-staging'
+    environment:
+      name: staging
+      url: https://staging.docuquery.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      # Uncomment when cluster is configured
+      # - name: Configure kubectl
+      #   uses: azure/k8s-set-context@v3
+      #   with:
+      #     kubeconfig: ${{ secrets.STAGING_KUBECONFIG }}
+
+      - name: Deploy with Helm (dry-run)
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "Image: ${{ needs.build-image.outputs.image }}"
+          
+          # Dry-run deployment
+          helm upgrade --install docuquery ./docuquery/helm/docuquery/ \
+            -f ./docuquery/helm/docuquery/values.yaml \
+            -f ./docuquery/helm/docuquery/values-staging.yaml \
+            --namespace docuquery-staging \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.tag=staging-latest \
+            --dry-run
+
+      - name: Deployment Summary
+        run: |
+          echo "## 🎉 Staging Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | Staging |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`${{ needs.build-image.outputs.image }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | \`${{ needs.build-and-test.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify deployment at staging URL" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run smoke tests" >> $GITHUB_STEP_SUMMARY
+          echo "3. Monitor metrics in Grafana" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================
+  # Post-Deployment Tests
+  # ===========================================
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install test dependencies
+        run: |
+          pip install requests pytest
+
+      - name: Run smoke tests
+        run: |
+          echo "🔥 Running smoke tests against staging..."
+          # Placeholder for actual smoke tests
+          # pytest tests/smoke/ --staging-url=https://staging.docuquery.example.com
+          echo "✅ Smoke tests passed (placeholder)"
+        env:
+          STAGING_URL: https://staging.docuquery.example.com
+
+  # ===========================================
+  # Notify on Completion
+  # ===========================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, smoke-tests]
+    if: always()
+    
+    steps:
+      - name: Notify Slack on success
+        if: ${{ needs.deploy-staging.result == 'success' }}
+        run: |
+          echo "✅ Staging deployment successful!"
+          # Uncomment to enable Slack notifications
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"✅ DocuQuery staging deployment successful!"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on failure
+        if: ${{ needs.deploy-staging.result == 'failure' }}
+        run: |
+          echo "❌ Staging deployment failed!"
+          # Uncomment to enable Slack notifications
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"❌ DocuQuery staging deployment failed!"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}

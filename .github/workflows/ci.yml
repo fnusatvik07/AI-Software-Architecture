@@ -7,9 +7,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop, stage3-development]
+    branches: [main, develop, stage3-development, stage4-staging, stage5-production]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, stage4-staging]
 
 env:
   PYTHON_VERSION: "3.11"
