@@ -1,6 +1,6 @@
 # DocuQuery - AI-Powered Document Q&A
 
-> **Stage 4: Staging Environment** - Production-ready RAG with Kubernetes, Helm, and observability (Prometheus, Grafana, Loki).
+> **Stage 5: Production Environment** - Production deployment with Blue/Green strategy, SLO monitoring, and High Availability.
 
 A production-ready RAG (Retrieval-Augmented Generation) application for document Q&A using **OpenAI GPT-4o**.
 
@@ -18,15 +18,15 @@ A production-ready RAG (Retrieval-Augmented Generation) application for document
 - 🔐 **Security Scanning** - Bandit, Safety, pip-audit
 - 📊 **SonarQube Ready** - Code quality analysis
 
-### Stage 4 - Staging Infrastructure
+### Stage 5 - Production Infrastructure
 
-- ☸️ **Kubernetes Manifests** - Full K8s deployment configs
-- ⎈ **Helm Chart** - Templated deployment with values
-- 📈 **Prometheus** - Metrics collection and alerting
-- 📊 **Grafana Dashboards** - API and system monitoring
-- 📝 **Logging Stack** - Loki + Promtail + FluentBit
-- 🔄 **HPA** - Auto-scaling based on CPU/memory
-- 🛡️ **RBAC & Network Policies** - Security configurations
+- 🔄 **Blue/Green Deployment** - Zero-downtime deployments with instant rollback
+- 🎯 **SLO Monitoring** - 99.9% availability target with error budgets
+- 📈 **Production Metrics** - Comprehensive Prometheus alerting
+- 🔒 **Security Hardened** - Strict network policies, pod security
+- ⚡ **High Availability** - Multi-zone deployment, pod anti-affinity
+- 🚨 **Critical Alerts** - SLO breach, availability, latency alerts
+- 📊 **CI/CD Pipeline** - Automated testing, security scans, deployments
 
 ---
 
@@ -454,6 +454,111 @@ All commands run from the root `architecture/` directory:
 
 ---
 
+## 🚀 Production Infrastructure (Stage 5)
+
+### Blue/Green Deployment
+
+Production uses blue/green deployment for zero-downtime releases:
+
+```
+docuquery/k8s/blue-green/
+├── deployments.yaml    # Blue and Green deployments
+├── services.yaml       # Active, Preview, Blue, Green services
+└── switch.sh          # Traffic switch script
+```
+
+**How it works:**
+1. Deploy new version to inactive color (e.g., green)
+2. Test via preview service
+3. Switch traffic by updating active service selector
+4. Monitor for issues, instant rollback available
+
+**Switch traffic:**
+```bash
+./docuquery/k8s/blue-green/switch.sh green  # Switch to green
+./docuquery/k8s/blue-green/switch.sh blue   # Rollback to blue
+```
+
+### Production Kustomize Overlay
+
+```
+docuquery/k8s/overlays/production/
+├── kustomization.yaml           # Production patches
+├── namespace.yaml               # Production namespace
+├── network-policy-production.yaml  # Strict network policies
+└── priority-class.yaml          # Pod priority classes
+```
+
+**Deploy to production:**
+```bash
+kubectl apply -k docuquery/k8s/overlays/production
+```
+
+### Production Helm Values
+
+```bash
+# Deploy with production values
+helm upgrade --install docuquery ./docuquery/helm/docuquery \
+  -f ./docuquery/helm/docuquery/values-production.yaml \
+  --namespace docuquery-production \
+  --set image.tag=v1.5.0
+```
+
+**Key production settings:**
+- 3-20 replicas with aggressive autoscaling
+- 2 CPU, 2Gi memory limits
+- Pod anti-affinity for HA
+- Topology spread across zones
+- Strict network policies
+- Rate limiting enabled
+
+### SLO Monitoring
+
+**Service Level Objectives:**
+| SLO | Target | Alert Threshold |
+|-----|--------|-----------------|
+| Availability | 99.9% | < 99.9% for 5m |
+| P95 Latency | < 200ms | > 200ms for 5m |
+| P99 Latency | < 500ms | > 500ms for 5m |
+| Error Rate | < 0.1% | > 0.1% for 2m |
+
+**Error Budget:**
+- 99.9% availability = 43.8 minutes downtime/month
+- Alerts when budget < 10% remaining
+
+### Production Alerts
+
+```
+docuquery/monitoring/prometheus/alerts-production.yml
+```
+
+**Critical alerts:**
+- `DocuQueryProductionDown` - Service unavailable
+- `SLOAvailabilityBreach` - Below 99.9% availability
+- `ErrorBudgetExhausted` - < 10% budget remaining
+- `DocuQueryHighErrorRate` - > 1% error rate
+- `DocuQueryLatencyP99Critical` - P99 > 2 seconds
+
+### CI/CD Pipeline
+
+**Production workflow** (`.github/workflows/production-deploy.yml`):
+1. **Build & Test** - 80% coverage required
+2. **Security Scan** - Trivy + Grype vulnerability scanning
+3. **Build Image** - Multi-arch (amd64, arm64)
+4. **Validate** - Helm lint, kubeval, OPA policies
+5. **Deploy** - Blue/Green with dry-run
+6. **Smoke Tests** - Post-deployment validation
+7. **Notify** - Slack notifications
+
+**Trigger production deployment:**
+```bash
+git push origin stage5-production
+# Or tag a release
+git tag v1.5.0 && git push --tags
+```
+
+---
+
 ## ☸️ Staging Infrastructure (Stage 4)
 
 ### Kubernetes Deployment
@@ -475,8 +580,8 @@ docuquery/k8s/
 │   ├── network-policy.yaml    # Network restrictions
 │   └── kustomization.yaml     # Kustomize config
 └── overlays/
-    └── staging/               # Staging-specific overrides
-        └── kustomization.yaml
+    ├── staging/               # Staging-specific overrides
+    └── production/            # Production-specific overrides
 ```
 
 **Deploy to staging:**
@@ -492,6 +597,8 @@ The `helm/` directory contains a templated Helm chart:
 docuquery/helm/docuquery/
 ├── Chart.yaml                 # Chart metadata
 ├── values.yaml                # Default values
+├── values-staging.yaml        # Staging overrides
+├── values-production.yaml     # Production overrides
 └── templates/
     ├── _helpers.tpl           # Template helpers
     ├── deployment.yaml        # Deployment template
@@ -517,6 +624,7 @@ helm install docuquery ./docuquery/helm/docuquery \
 **Prometheus** (`monitoring/prometheus/`):
 - Metrics scraping configuration
 - Alert rules for errors, latency, resources
+- Production-specific SLO alerts
 
 **Grafana** (`monitoring/grafana/`):
 - API performance dashboard

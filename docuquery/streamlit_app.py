@@ -1,7 +1,7 @@
 """
-DocuQuery - Stage 4 Staging Environment
+DocuQuery - Stage 5 Production Environment
 A production-ready RAG application with Streamlit UI
-Staging infrastructure with Kubernetes, Helm, and observability
+Production deployment with Blue/Green strategy, SLO monitoring, and HA
 """
 
 import streamlit as st
@@ -18,8 +18,8 @@ API_BASE_URL = "http://localhost:8000"
 
 # Page Configuration
 st.set_page_config(
-    page_title="DocuQuery | Stage 4 Staging",
-    page_icon="🎯",
+    page_title="DocuQuery | Stage 5 Production",
+    page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -36,7 +36,7 @@ st.markdown("""
     
     /* Header styling */
     .main-header {
-        background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
         padding: 2rem;
         border-radius: 1rem;
         color: white;
@@ -79,7 +79,7 @@ st.markdown("""
     .metric-value {
         font-size: 2rem;
         font-weight: 700;
-        color: #2563eb;
+        color: #059669;
     }
     
     .metric-label {
@@ -298,8 +298,8 @@ def get_document_stats() -> Dict:
 
 # Sidebar
 with st.sidebar:
-    st.markdown("### 🎯 DocuQuery")
-    st.markdown("**Stage 4: Staging**")
+    st.markdown("### 🚀 DocuQuery")
+    st.markdown("**Stage 5: Production**")
     st.markdown("---")
     
     # API Status
@@ -369,9 +369,9 @@ SCORE_THRESHOLD: 0.3
 # Main Header
 st.markdown("""
 <div class="main-header">
-    <div class="stage-badge">🎯 STAGE 4</div>
-    <h1>DocuQuery Staging Environment</h1>
-    <p>Production-ready RAG with Kubernetes, Helm, Prometheus, and Grafana</p>
+    <div class="stage-badge">🚀 STAGE 5</div>
+    <h1>DocuQuery Production Environment</h1>
+    <p>Production deployment with Blue/Green strategy, SLO monitoring, and High Availability</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -707,13 +707,13 @@ with tab4:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #64748b; font-size: 0.875rem;">
-    <p><strong>DocuQuery</strong> | Stage 4: Staging Environment</p>
+    <p><strong>DocuQuery</strong> | Stage 5: Production Environment</p>
     <p>Part of the AI Software Architecture Workshop</p>
     <p style="margin-top: 0.5rem;">
-        <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Kubernetes</span>
-        <span style="background: #fef3c7; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Helm</span>
-        <span style="background: #d1fae5; color: #065f46; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Prometheus</span>
-        <span style="background: #ede9fe; color: #5b21b6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Grafana</span>
+        <span style="background: #d1fae5; color: #065f46; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Blue/Green</span>
+        <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">SLO Monitoring</span>
+        <span style="background: #fef3c7; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">High Availability</span>
+        <span style="background: #ede9fe; color: #5b21b6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">99.9% SLA</span>
     </p>
 </div>
 """, unsafe_allow_html=True)

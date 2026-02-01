@@ -1,0 +1,89 @@
+# ===========================================
+# Blue/Green Service Configuration
+# ===========================================
+# Active service switches between blue and green
+
+# Blue Service (internal)
+apiVersion: v1
+kind: Service
+metadata:
+  name: docuquery-blue
+  namespace: docuquery-production
+  labels:
+    app: docuquery
+    color: blue
+spec:
+  type: ClusterIP
+  selector:
+    app: docuquery
+    color: blue
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+---
+# Green Service (internal)
+apiVersion: v1
+kind: Service
+metadata:
+  name: docuquery-green
+  namespace: docuquery-production
+  labels:
+    app: docuquery
+    color: green
+spec:
+  type: ClusterIP
+  selector:
+    app: docuquery
+    color: green
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+---
+# Active Service (production traffic)
+# This service is updated to point to either blue or green
+apiVersion: v1
+kind: Service
+metadata:
+  name: docuquery-active
+  namespace: docuquery-production
+  labels:
+    app: docuquery
+    role: active
+  annotations:
+    description: "Active production service - currently pointing to blue"
+spec:
+  type: ClusterIP
+  selector:
+    app: docuquery
+    color: blue  # Switch this to 'green' during deployment
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+---
+# Preview Service (for testing new deployment before switch)
+apiVersion: v1
+kind: Service
+metadata:
+  name: docuquery-preview
+  namespace: docuquery-production
+  labels:
+    app: docuquery
+    role: preview
+  annotations:
+    description: "Preview service for testing new deployment"
+spec:
+  type: ClusterIP
+  selector:
+    app: docuquery
+    color: green  # Always points to the inactive deployment
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP

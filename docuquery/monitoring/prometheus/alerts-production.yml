@@ -1,0 +1,218 @@
+# ===========================================
+# Production Alert Rules
+# ===========================================
+# Critical alerts for production environment
+
+groups:
+  - name: docuquery-production-critical
+    rules:
+      # ===========================================
+      # Availability Alerts
+      # ===========================================
+      - alert: DocuQueryProductionDown
+        expr: up{job="docuquery-api", environment="production"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          environment: production
+          team: platform
+        annotations:
+          summary: "CRITICAL: DocuQuery Production is DOWN"
+          description: "DocuQuery production API has been down for more than 1 minute."
+          runbook_url: "https://wiki.example.com/runbooks/docuquery-down"
+          dashboard_url: "https://grafana.example.com/d/docuquery-prod"
+
+      - alert: DocuQueryHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="docuquery-api", environment="production", status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="docuquery-api", environment="production"}[5m]))
+          ) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+          environment: production
+        annotations:
+          summary: "CRITICAL: High error rate in production"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%)"
+          runbook_url: "https://wiki.example.com/runbooks/high-error-rate"
+
+      - alert: DocuQueryLatencyP99Critical
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{job="docuquery-api", environment="production"}[5m])) by (le)
+          ) > 2
+        for: 3m
+        labels:
+          severity: critical
+          environment: production
+        annotations:
+          summary: "CRITICAL: P99 latency exceeds 2 seconds"
+          description: "99th percentile latency is {{ $value }}s"
+
+      # ===========================================
+      # Resource Alerts
+      # ===========================================
+      - alert: DocuQueryHighCPUProduction
+        expr: |
+          (
+            sum(rate(container_cpu_usage_seconds_total{namespace="docuquery-production", container="docuquery"}[5m]))
+            /
+            sum(kube_pod_container_resource_limits{namespace="docuquery-production", container="docuquery", resource="cpu"})
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          environment: production
+        annotations:
+          summary: "High CPU usage in production"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+      - alert: DocuQueryHighMemoryProduction
+        expr: |
+          (
+            sum(container_memory_working_set_bytes{namespace="docuquery-production", container="docuquery"})
+            /
+            sum(kube_pod_container_resource_limits{namespace="docuquery-production", container="docuquery", resource="memory"})
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          environment: production
+        annotations:
+          summary: "High memory usage in production"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      - alert: DocuQueryOOMKillProduction
+        expr: |
+          increase(kube_pod_container_status_restarts_total{namespace="docuquery-production", container="docuquery"}[1h]) > 3
+        for: 0m
+        labels:
+          severity: critical
+          environment: production
+        annotations:
+          summary: "CRITICAL: Multiple pod restarts in production"
+          description: "{{ $value }} restarts in the last hour"
+
+      # ===========================================
+      # Scaling Alerts
+      # ===========================================
+      - alert: DocuQueryHPAMaxedOut
+        expr: |
+          kube_horizontalpodautoscaler_status_current_replicas{namespace="docuquery-production"}
+          ==
+          kube_horizontalpodautoscaler_spec_max_replicas{namespace="docuquery-production"}
+        for: 15m
+        labels:
+          severity: warning
+          environment: production
+        annotations:
+          summary: "HPA at maximum replicas"
+          description: "DocuQuery HPA has been at max replicas for 15 minutes"
+
+      - alert: DocuQueryPodsNotReady
+        expr: |
+          kube_deployment_status_replicas_ready{namespace="docuquery-production", deployment=~"docuquery.*"}
+          <
+          kube_deployment_spec_replicas{namespace="docuquery-production", deployment=~"docuquery.*"}
+        for: 5m
+        labels:
+          severity: critical
+          environment: production
+        annotations:
+          summary: "CRITICAL: Not all pods are ready"
+          description: "Only {{ $value }} pods ready"
+
+      # ===========================================
+      # SLO Alerts
+      # ===========================================
+      - alert: DocuQuerySLOAvailabilityBreach
+        expr: |
+          (
+            sum(rate(http_requests_total{job="docuquery-api", environment="production", status!~"5.."}[1h]))
+            /
+            sum(rate(http_requests_total{job="docuquery-api", environment="production"}[1h]))
+          ) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          environment: production
+          slo: availability
+        annotations:
+          summary: "CRITICAL: SLO Availability breach"
+          description: "Availability is {{ $value | humanizePercentage }} (SLO: 99.9%)"
+
+      - alert: DocuQuerySLOLatencyBreach
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="docuquery-api", environment="production"}[1h])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          environment: production
+          slo: latency
+        annotations:
+          summary: "SLO Latency breach"
+          description: "P95 latency is {{ $value }}s (SLO: 500ms)"
+
+      # ===========================================
+      # Security Alerts
+      # ===========================================
+      - alert: DocuQueryUnusualTrafficSpike
+        expr: |
+          (
+            sum(rate(http_requests_total{job="docuquery-api", environment="production"}[5m]))
+            /
+            sum(rate(http_requests_total{job="docuquery-api", environment="production"}[1h] offset 1d))
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+          environment: production
+          type: security
+        annotations:
+          summary: "Unusual traffic spike detected"
+          description: "Traffic is {{ $value }}x higher than same time yesterday"
+
+      - alert: DocuQueryRateLimitExceeded
+        expr: |
+          sum(rate(http_requests_total{job="docuquery-api", environment="production", status="429"}[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+          environment: production
+        annotations:
+          summary: "High rate of rate-limited requests"
+          description: "{{ $value }} rate-limited requests per second"
+
+  - name: docuquery-production-slo
+    interval: 30s
+    rules:
+      # Recording rules for SLO calculations
+      - record: docuquery:slo:availability:ratio
+        expr: |
+          sum(rate(http_requests_total{job="docuquery-api", environment="production", status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="docuquery-api", environment="production"}[5m]))
+
+      - record: docuquery:slo:latency:p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="docuquery-api", environment="production"}[5m])) by (le)
+          )
+
+      - record: docuquery:slo:latency:p99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{job="docuquery-api", environment="production"}[5m])) by (le)
+          )
+
+      - record: docuquery:error_budget:remaining
+        expr: |
+          1 - (
+            (1 - docuquery:slo:availability:ratio)
+            /
+            (1 - 0.999)
+          )

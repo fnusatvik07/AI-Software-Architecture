@@ -1,0 +1,183 @@
+# ===========================================
+# Kustomization - Production Overlay
+# ===========================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: docuquery-production
+
+# Base resources
+resources:
+  - ../../base
+  - namespace.yaml
+  - network-policy-production.yaml
+  - priority-class.yaml
+
+# Name prefix for production
+namePrefix: prod-
+
+# Common labels
+commonLabels:
+  environment: production
+  tier: application
+  managed-by: kustomize
+
+# Common annotations
+commonAnnotations:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/environment: production
+  app.kubernetes.io/part-of: docuquery
+
+# ConfigMap generator
+configMapGenerator:
+  - name: docuquery-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+      - ENABLE_METRICS=true
+      - ENABLE_PROFILING=false
+      - ENABLE_DEBUG=false
+      - RATE_LIMIT_ENABLED=true
+      - CACHE_ENABLED=true
+
+# Secret generator (use external secrets manager in production)
+secretGenerator:
+  - name: docuquery-secrets
+    behavior: merge
+    literals:
+      - API_KEY=REPLACE_WITH_EXTERNAL_SECRET
+
+# Patches for production-specific configuration
+patches:
+  # Scale deployment for production
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: docuquery-api
+      spec:
+        replicas: 3
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 0
+        template:
+          spec:
+            priorityClassName: high-priority
+            containers:
+              - name: docuquery-api
+                resources:
+                  limits:
+                    cpu: "2000m"
+                    memory: "2Gi"
+                  requests:
+                    cpu: "500m"
+                    memory: "1Gi"
+                env:
+                  - name: ENVIRONMENT
+                    value: "production"
+                  - name: LOG_LEVEL
+                    value: "INFO"
+            topologySpreadConstraints:
+              - maxSkew: 1
+                topologyKey: topology.kubernetes.io/zone
+                whenUnsatisfiable: DoNotSchedule
+                labelSelector:
+                  matchLabels:
+                    app: docuquery
+            affinity:
+              podAntiAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  - labelSelector:
+                      matchExpressions:
+                        - key: app
+                          operator: In
+                          values:
+                            - docuquery
+                    topologyKey: kubernetes.io/hostname
+
+  # Update HPA for production
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: docuquery-hpa
+      spec:
+        minReplicas: 3
+        maxReplicas: 20
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 60
+          - type: Resource
+            resource:
+              name: memory
+              target:
+                type: Utilization
+                averageUtilization: 70
+        behavior:
+          scaleDown:
+            stabilizationWindowSeconds: 300
+            policies:
+              - type: Percent
+                value: 10
+                periodSeconds: 60
+          scaleUp:
+            stabilizationWindowSeconds: 0
+            policies:
+              - type: Percent
+                value: 100
+                periodSeconds: 15
+
+  # Update PDB for production
+  - patch: |-
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: docuquery-pdb
+      spec:
+        minAvailable: 2
+
+  # Update ingress for production
+  - patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: docuquery-ingress
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+          nginx.ingress.kubernetes.io/rate-limit: "100"
+      spec:
+        rules:
+          - host: docuquery.example.com
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: prod-docuquery-api
+                      port:
+                        number: 80
+        tls:
+          - hosts:
+              - docuquery.example.com
+            secretName: docuquery-production-tls
+
+# Image configuration
+images:
+  - name: docuquery-api
+    newName: ghcr.io/fnusatvik07/ai-software-architecture/docuquery
+    newTag: production-latest
+
+# Replicas transformer
+replicas:
+  - name: docuquery-api
+    count: 3

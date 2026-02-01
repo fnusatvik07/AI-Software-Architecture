@@ -1,0 +1,20 @@
+# ===========================================
+# Priority Classes for Production
+# ===========================================
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000000
+globalDefault: false
+description: "High priority class for production DocuQuery workloads"
+preemptionPolicy: PreemptLowerPriority
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: critical-priority
+value: 1000000000
+globalDefault: false
+description: "Critical priority class for essential DocuQuery services"
+preemptionPolicy: PreemptLowerPriority

@@ -1,0 +1,13 @@
+# ===========================================
+# Production Namespace
+# ===========================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: docuquery-production
+  labels:
+    name: docuquery-production
+    environment: production
+    istio-injection: enabled
+  annotations:
+    scheduler.alpha.kubernetes.io/defaultTolerations: '[{"key":"environment","operator":"Equal","value":"production","effect":"NoSchedule"}]'
