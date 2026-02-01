@@ -368,6 +368,25 @@ Watch out for:
 
 ## ✅ Stage 1 Checklist
 
+## 🧪 Optional: Frontend Preview (React)
+
+If you want to preview the Stage 1 React UI locally:
+
+```sh
+cd frontend
+npm install
+npm run dev
+```
+
+If the dev server fails or dependencies look corrupted, do a clean reinstall:
+
+```sh
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
+```
+
 Before moving to Stage 2 (POC), ensure you have:
 
 - [x] Clear problem statement with quantified impact
