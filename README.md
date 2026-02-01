@@ -311,12 +311,230 @@ make install-dev
 # Configure environment
 cp docuquery/.env.example docuquery/.env
 # Edit .env with your OPENAI_API_KEY
-
-# Run the application
-make dev          # FastAPI on :8000
-make streamlit    # Streamlit on :8501
-make frontend     # React on :5173
 ```
+
+---
+
+## Running the Application
+
+### Complete Setup Commands
+
+```bash
+# Step 1: Clone the repository
+git clone https://github.com/fnusatvik07/AI-Software-Architecture.git
+cd AI-Software-Architecture
+
+# Step 2: Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate        # macOS/Linux
+# .venv\Scripts\activate         # Windows
+
+# Step 3: Install all dependencies
+make install && make install-dev
+
+# Step 4: Setup environment variables
+cp docuquery/.env.example docuquery/.env
+# Edit docuquery/.env and add your OPENAI_API_KEY
+
+# Step 5: Install frontend dependencies (for React UI)
+cd docuquery/frontend && npm install && cd ../..
+```
+
+### 1. Running FastAPI Backend
+
+The FastAPI server is the core backend that handles document processing and queries.
+
+```bash
+# Option A: Using Make (Recommended)
+make dev                         # Development mode with auto-reload on :8000
+make run                         # Production mode on :8000
+
+# Option B: Direct command
+cd docuquery && uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Option C: Using Python directly
+cd docuquery && python -m uvicorn src.api.main:app --reload --port 8000
+
+# Verify it's running:
+curl http://localhost:8000/api/v1/health
+# Expected: {"status":"healthy","components":{...}}
+```
+
+**FastAPI Endpoints:**
+| URL | Description |
+|-----|-------------|
+| http://localhost:8000 | API root |
+| http://localhost:8000/docs | Swagger UI documentation |
+| http://localhost:8000/redoc | ReDoc documentation |
+| http://localhost:8000/api/v1/health | Health check endpoint |
+
+### 2. Running Streamlit UI
+
+Streamlit provides the interactive development interface for document upload and querying.
+
+```bash
+# Option A: Using Make (Recommended)
+make streamlit                   # Runs on :8501
+
+# Option B: Direct command
+cd docuquery && streamlit run streamlit_app.py --server.port 8501
+
+# Option C: With specific configuration
+cd docuquery && streamlit run streamlit_app.py \
+  --server.port 8501 \
+  --server.address 0.0.0.0 \
+  --browser.gatherUsageStats false
+
+# Verify it's running:
+curl -s http://localhost:8501 | head -5
+```
+
+**Streamlit Access:**
+| URL | Description |
+|-----|-------------|
+| http://localhost:8501 | Main Streamlit application |
+
+**Note:** Streamlit requires FastAPI to be running for full functionality.
+
+### 3. Running React UI
+
+The React frontend showcases the application with a modern UI for each development stage.
+
+```bash
+# Option A: Using Make (Recommended)
+make frontend                    # Runs on :5173
+
+# Option B: Direct npm commands
+cd docuquery/frontend
+npm install                      # First time only
+npm run dev                      # Development server on :5173
+
+# Option C: Build for production
+cd docuquery/frontend
+npm run build                    # Creates dist/ folder
+npm run preview                  # Preview production build on :4173
+
+# Verify it's running:
+curl -s http://localhost:5173 | head -5
+```
+
+**React UI Access:**
+| URL | Description |
+|-----|-------------|
+| http://localhost:5173 | Development server |
+| http://localhost:4173 | Production preview (after build) |
+
+### Running All Services Together
+
+To run the complete application stack, open 3 terminal windows:
+
+```bash
+# Terminal 1: FastAPI Backend
+cd AI-Software-Architecture
+source .venv/bin/activate
+make dev
+
+# Terminal 2: Streamlit UI
+cd AI-Software-Architecture
+source .venv/bin/activate
+make streamlit
+
+# Terminal 3: React Frontend
+cd AI-Software-Architecture/docuquery/frontend
+npm run dev
+```
+
+**All Services Summary:**
+| Service | Port | URL | Command |
+|---------|------|-----|---------|
+| FastAPI | 8000 | http://localhost:8000 | `make dev` |
+| Streamlit | 8501 | http://localhost:8501 | `make streamlit` |
+| React | 5173 | http://localhost:5173 | `make frontend` |
+
+### Environment-Specific Commands
+
+#### Stage 3: Development Environment
+
+```bash
+# Checkout development branch
+git checkout stage3-development
+
+# Run services
+make dev                         # FastAPI on :8000
+make streamlit                   # Streamlit on :8501  
+make frontend                    # React (Stage 3 UI) on :5173
+
+# Run tests
+make test                        # All 150+ tests
+make test-cov                    # With coverage report
+```
+
+#### Stage 4: Staging Environment
+
+```bash
+# Checkout staging branch
+git checkout stage4-staging
+
+# Run locally (same commands)
+make dev                         # FastAPI on :8000
+make streamlit                   # Streamlit on :8501
+make frontend                    # React (Stage 4 UI) on :5173
+
+# Deploy to Kubernetes staging
+kubectl apply -k docuquery/k8s/overlays/staging
+
+# Or using Helm
+helm upgrade --install docuquery ./docuquery/helm/docuquery \
+  -f ./docuquery/helm/docuquery/values-staging.yaml \
+  --namespace docuquery-staging \
+  --create-namespace
+
+# View infrastructure dashboard
+make infra-dashboard             # Infrastructure metrics on :8502
+```
+
+#### Stage 5: Production Environment
+
+```bash
+# Checkout production branch
+git checkout stage5-production
+
+# Run locally (same commands)
+make dev                         # FastAPI on :8000
+make streamlit                   # Streamlit on :8501
+make frontend                    # React (Stage 5 UI) on :5173
+
+# Deploy to Kubernetes production
+helm upgrade --install docuquery ./docuquery/helm/docuquery \
+  -f ./docuquery/helm/docuquery/values-production.yaml \
+  --namespace docuquery-production \
+  --set image.tag=v1.5.0
+
+# Blue/Green traffic switch
+./docuquery/k8s/blue-green/switch.sh green   # Switch to green
+./docuquery/k8s/blue-green/switch.sh blue    # Rollback to blue
+```
+
+### Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+cd docuquery/docker
+docker-compose up -d
+
+# Services available:
+# - FastAPI:    http://localhost:8000
+# - Streamlit:  http://localhost:8501
+# - Qdrant:     http://localhost:6333
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+---
 
 ### Running Tests
 
