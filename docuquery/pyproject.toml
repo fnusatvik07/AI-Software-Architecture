@@ -1,0 +1,221 @@
+# ===========================================
+# PyProject.toml - Project Configuration
+# ===========================================
+# Complete configuration for DocuQuery Stage 3 Development Environment
+# Includes all quality tools: pytest, ruff, mypy, black, bandit, etc.
+
+[project]
+name = "docuquery"
+version = "1.0.0"
+description = "Production-ready RAG application with FastAPI, Qdrant, and GPT-4o"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "DocuQuery Team", email = "team@docuquery.dev"}
+]
+keywords = ["rag", "llm", "fastapi", "openai", "qdrant", "embeddings"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "openai>=1.12.0",
+    "anthropic>=0.18.0",
+    "qdrant-client>=1.7.0",
+    "pypdf>=4.0.0",
+    "jinja2>=3.1.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.26.0",
+    "streamlit>=1.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-mock>=3.12.0",
+    "pytest-timeout>=2.2.0",
+    "pytest-html>=4.1.0",
+    "respx>=0.20.0",
+    
+    # Linting & Formatting
+    "ruff>=0.2.0",
+    "black>=24.0.0",
+    "isort>=5.13.0",
+    
+    # Type Checking
+    "mypy>=1.8.0",
+    "types-requests>=2.31.0",
+    
+    # Security
+    "bandit>=1.7.0",
+    "safety>=2.3.0",
+    "pip-audit>=2.6.0",
+    
+    # Code Quality
+    "pylint>=3.0.0",
+    "flake8>=7.0.0",
+    "radon>=6.0.0",
+    
+    # Pre-commit
+    "pre-commit>=3.6.0",
+]
+
+[project.scripts]
+docuquery = "src.api.main:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "config*"]
+
+# ===========================================
+# pytest Configuration
+# ===========================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "-ra",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "e2e: End-to-end tests",
+    "security: Security tests",
+    "slow: Slow running tests",
+    "smoke: Smoke tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# ===========================================
+# Coverage Configuration
+# ===========================================
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+fail_under = 80
+show_missing = true
+
+# ===========================================
+# Black Configuration (Code Formatter)
+# ===========================================
+[tool.black]
+line-length = 88
+target-version = ['py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+    | \.venv
+    | build
+    | dist
+)/
+'''
+
+# ===========================================
+# isort Configuration (Import Sorter)
+# ===========================================
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+known_first_party = ["src", "config", "tests"]
+
+# ===========================================
+# Ruff Configuration (Fast Linter)
+# ===========================================
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+exclude = [".git", ".venv", "build", "dist", "__pycache__"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "S",      # flake8-bandit (security)
+]
+ignore = ["E501", "B008", "S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "ARG"]
+
+# ===========================================
+# mypy Configuration (Type Checker)
+# ===========================================
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+ignore_errors = true
+
+# ===========================================
+# Bandit Configuration (Security Linter)
+# ===========================================
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "build", "dist"]
+skips = ["B101"]
+targets = ["src", "config"]
+
+# ===========================================
+# Pylint Configuration
+# ===========================================
+[tool.pylint.main]
+jobs = 0
+ignore-patterns = ["test_.*\\.py", "conftest\\.py"]
+
+[tool.pylint.messages_control]
+disable = ["C0114", "C0115", "C0116", "R0903", "R0913", "W0212"]
+
+[tool.pylint.format]
+max-line-length = 88

@@ -1,0 +1,8 @@
+Context:
+{{ context }}
+
+---
+
+Question: {{ question }}
+
+Please provide a helpful answer based only on the context above. Include citations to the source documents.

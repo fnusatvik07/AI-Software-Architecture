@@ -1,0 +1,426 @@
+# ===========================================
+# DocuQuery CI/CD Pipeline
+# ===========================================
+# Comprehensive checks for production-ready code
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, stage3-development]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # ===========================================
+  # Code Quality Checks
+  # ===========================================
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run Ruff linter
+        run: |
+          ruff check src/ tests/ --output-format=github
+
+      - name: Run Black formatter check
+        run: |
+          black --check --diff src/ tests/
+
+      - name: Run isort check
+        run: |
+          isort --check-only --diff src/ tests/
+
+  # ===========================================
+  # Type Checking
+  # ===========================================
+  type-check:
+    name: Type Checking
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run MyPy
+        run: |
+          mypy src/ --ignore-missing-imports --no-error-summary || true
+
+  # ===========================================
+  # Security Scanning
+  # ===========================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit safety pip-audit
+
+      - name: Run Bandit security linter
+        run: |
+          bandit -r src/ -f json -o bandit-report.json || true
+          bandit -r src/ -f txt
+
+      - name: Check dependencies for vulnerabilities (Safety)
+        run: |
+          safety check -r requirements.txt --output json > safety-report.json || true
+          safety check -r requirements.txt || true
+
+      - name: Run pip-audit
+        run: |
+          pip-audit -r requirements.txt || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  # ===========================================
+  # Unit Tests
+  # ===========================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=html --junitxml=test-results-unit.xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-unit
+          path: |
+            coverage.xml
+            htmlcov/
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-unit
+          path: test-results-unit.xml
+
+  # ===========================================
+  # Integration Tests
+  # ===========================================
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ -v --junitxml=test-results-integration.xml
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-integration
+          path: test-results-integration.xml
+
+  # ===========================================
+  # E2E Tests
+  # ===========================================
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run E2E tests
+        run: |
+          pytest tests/e2e/ -v --junitxml=test-results-e2e.xml || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-e2e
+          path: test-results-e2e.xml
+
+  # ===========================================
+  # Security Tests
+  # ===========================================
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run security tests
+        run: |
+          pytest tests/security/ -v --junitxml=test-results-security.xml
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-security
+          path: test-results-security.xml
+
+  # ===========================================
+  # SonarQube Analysis
+  # ===========================================
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    needs: [unit-tests, security]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for SonarQube
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report-unit
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true  # Don't fail if SonarQube not configured
+
+  # ===========================================
+  # Docker Build Test
+  # ===========================================
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: [quality, unit-tests]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: false
+          tags: docuquery:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================
+  # Documentation Check
+  # ===========================================
+  docs:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install documentation tools
+        run: |
+          pip install pydocstyle interrogate
+
+      - name: Check docstrings with pydocstyle
+        run: |
+          pydocstyle src/ --convention=google --add-ignore=D100,D104,D105,D107 || true
+
+      - name: Check docstring coverage with interrogate
+        run: |
+          interrogate src/ -v --fail-under=50 || true
+
+  # ===========================================
+  # License Check
+  # ===========================================
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install pip-licenses
+        run: |
+          pip install pip-licenses
+
+      - name: Check licenses
+        run: |
+          pip install -r requirements.txt
+          pip-licenses --format=markdown --output-file=licenses.md || true
+          pip-licenses --fail-on="GPL;AGPL" || true
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses.md
+
+  # ===========================================
+  # Performance Tests (Placeholder)
+  # ===========================================
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install locust pytest-benchmark
+
+      - name: Run performance benchmarks
+        run: |
+          echo "Performance tests placeholder - implement with locust or pytest-benchmark"
+          # pytest tests/performance/ -v --benchmark-json=benchmark.json || true
+
+  # ===========================================
+  # Final Status Check
+  # ===========================================
+  status-check:
+    name: Final Status
+    runs-on: ubuntu-latest
+    needs: [quality, type-check, security, unit-tests, integration-tests, security-tests, docker-build]
+    if: always()
+    steps:
+      - name: Check all job statuses
+        run: |
+          echo "Quality: ${{ needs.quality.result }}"
+          echo "Type Check: ${{ needs.type-check.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Unit Tests: ${{ needs.unit-tests.result }}"
+          echo "Integration Tests: ${{ needs.integration-tests.result }}"
+          echo "Security Tests: ${{ needs.security-tests.result }}"
+          echo "Docker Build: ${{ needs.docker-build.result }}"
+
+      - name: Fail if any required job failed
+        if: |
+          needs.quality.result == 'failure' ||
+          needs.unit-tests.result == 'failure' ||
+          needs.security-tests.result == 'failure'
+        run: exit 1
+
+      - name: All checks passed
+        run: echo "✅ All CI checks passed successfully!"

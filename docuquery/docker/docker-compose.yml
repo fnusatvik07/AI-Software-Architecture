@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=dev
+      - DEBUG=true
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    env_file:
+      - ../.env
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    networks:
+      - docuquery
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - docuquery
+
+networks:
+  docuquery:
+    driver: bridge
+
+volumes:
+  qdrant_data:

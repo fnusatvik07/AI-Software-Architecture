@@ -13,3 +13,5 @@ wheels/
 frontend/node_modules/
 poc/chroma_db/
 .venv/
+docuquery/frontend/node_modules/
+.vite/

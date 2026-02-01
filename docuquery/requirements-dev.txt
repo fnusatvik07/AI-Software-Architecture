@@ -1,0 +1,65 @@
+# ===========================================
+# Testing
+# ===========================================
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.5.0          # Parallel test execution
+pytest-benchmark>=4.0.0       # Performance benchmarks
+pytest-mock>=3.12.0           # Mocking utilities
+pytest-timeout>=2.2.0         # Test timeouts
+pytest-randomly>=3.15.0       # Randomize test order
+httpx>=0.26.0                 # Async HTTP client for testing
+
+# ===========================================
+# Linting & Formatting
+# ===========================================
+ruff>=0.2.0                   # Fast Python linter
+black>=24.1.0                 # Code formatter
+isort>=5.13.0                 # Import sorter
+mypy>=1.8.0                   # Type checker
+pylint>=3.0.0                 # Static code analysis
+
+# ===========================================
+# Type Stubs
+# ===========================================
+types-requests>=2.31.0
+types-python-dateutil>=2.8.0
+types-PyYAML>=6.0.0
+
+# ===========================================
+# Security
+# ===========================================
+bandit>=1.7.7                 # Security linter
+safety>=2.3.5                 # Dependency vulnerability check
+pip-audit>=2.7.0              # Pip package auditing
+
+# ===========================================
+# Documentation
+# ===========================================
+pydocstyle>=6.3.0             # Docstring style checker
+interrogate>=1.5.0            # Docstring coverage
+
+# ===========================================
+# Code Quality
+# ===========================================
+pre-commit>=3.6.0             # Pre-commit hooks
+commitizen>=3.14.0            # Conventional commits
+detect-secrets>=1.4.0         # Secrets detection
+
+# ===========================================
+# Debugging & Profiling
+# ===========================================
+ipdb>=0.13.13                 # Python debugger
+memory-profiler>=0.61.0       # Memory profiling
+line-profiler>=4.1.0          # Line-by-line profiling
+
+# ===========================================
+# License Checking
+# ===========================================
+pip-licenses>=4.3.0           # License checker
+
+# ===========================================
+# Load Testing
+# ===========================================
+locust>=2.23.0                # Load testing framework
