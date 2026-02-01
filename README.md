@@ -1,6 +1,6 @@
 # DocuQuery - AI-Powered Document Q&A
 
-> **Stage 3: Development Environment** - Production-ready RAG application with comprehensive testing and CI/CD pipeline.
+> **Stage 4: Staging Environment** - Production-ready RAG with Kubernetes, Helm, and observability (Prometheus, Grafana, Loki).
 
 A production-ready RAG (Retrieval-Augmented Generation) application for document Q&A using **OpenAI GPT-4o**.
 
@@ -17,6 +17,16 @@ A production-ready RAG (Retrieval-Augmented Generation) application for document
 - ✅ **150+ Tests** - Unit, integration, E2E, and security tests
 - 🔐 **Security Scanning** - Bandit, Safety, pip-audit
 - 📊 **SonarQube Ready** - Code quality analysis
+
+### Stage 4 - Staging Infrastructure
+
+- ☸️ **Kubernetes Manifests** - Full K8s deployment configs
+- ⎈ **Helm Chart** - Templated deployment with values
+- 📈 **Prometheus** - Metrics collection and alerting
+- 📊 **Grafana Dashboards** - API and system monitoring
+- 📝 **Logging Stack** - Loki + Promtail + FluentBit
+- 🔄 **HPA** - Auto-scaling based on CPU/memory
+- 🛡️ **RBAC & Network Policies** - Security configurations
 
 ---
 
@@ -64,10 +74,11 @@ make pre-commit     # Install pre-commit hooks
 
 ### Running Applications
 ```bash
-make run            # Run FastAPI server (production mode)
-make dev            # Run FastAPI with auto-reload (development)
-make streamlit      # Run Streamlit UI on port 8501
-make frontend       # Run React frontend on port 5173
+make run              # Run FastAPI server (production mode)
+make dev              # Run FastAPI with auto-reload (development)
+make streamlit        # Run Streamlit UI on port 8501
+make infra-dashboard  # Run Infrastructure Dashboard on port 8502
+make frontend         # Run React frontend on port 5173
 ```
 
 ### Code Quality
@@ -440,6 +451,92 @@ All commands run from the root `architecture/` directory:
 4. **Quality**: `make quality`
 5. **Commit**: Pre-commit hooks run automatically
 6. **Push**: CI/CD pipeline validates everything
+
+---
+
+## ☸️ Staging Infrastructure (Stage 4)
+
+### Kubernetes Deployment
+
+The `k8s/` directory contains production-ready Kubernetes manifests:
+
+```
+docuquery/k8s/
+├── base/                      # Base manifests
+│   ├── namespace.yaml         # Namespace definition
+│   ├── deployment.yaml        # Main deployment
+│   ├── service.yaml           # ClusterIP service
+│   ├── ingress.yaml           # Ingress with TLS
+│   ├── configmap.yaml         # Application config
+│   ├── secrets.yaml           # Sensitive data
+│   ├── hpa.yaml               # Horizontal Pod Autoscaler
+│   ├── pdb.yaml               # Pod Disruption Budget
+│   ├── rbac.yaml              # Service account & roles
+│   ├── network-policy.yaml    # Network restrictions
+│   └── kustomization.yaml     # Kustomize config
+└── overlays/
+    └── staging/               # Staging-specific overrides
+        └── kustomization.yaml
+```
+
+**Deploy to staging:**
+```bash
+kubectl apply -k docuquery/k8s/overlays/staging
+```
+
+### Helm Chart
+
+The `helm/` directory contains a templated Helm chart:
+
+```
+docuquery/helm/docuquery/
+├── Chart.yaml                 # Chart metadata
+├── values.yaml                # Default values
+└── templates/
+    ├── _helpers.tpl           # Template helpers
+    ├── deployment.yaml        # Deployment template
+    ├── service.yaml           # Service template
+    ├── ingress.yaml           # Ingress template
+    ├── configmap.yaml         # ConfigMap template
+    ├── secrets.yaml           # Secrets template
+    ├── hpa.yaml               # HPA template
+    ├── pdb.yaml               # PDB template
+    └── servicemonitor.yaml    # Prometheus ServiceMonitor
+```
+
+**Install with Helm:**
+```bash
+helm install docuquery ./docuquery/helm/docuquery \
+  --namespace docuquery \
+  --create-namespace \
+  --set secrets.openaiApiKey=$OPENAI_API_KEY
+```
+
+### Monitoring Stack
+
+**Prometheus** (`monitoring/prometheus/`):
+- Metrics scraping configuration
+- Alert rules for errors, latency, resources
+
+**Grafana** (`monitoring/grafana/`):
+- API performance dashboard
+- System metrics dashboard
+- Datasource provisioning
+
+**View Infrastructure Dashboard:**
+```bash
+make infra-dashboard   # Opens on port 8502
+```
+
+### Logging Stack
+
+**Loki** (`logging/loki/`):
+- Log aggregation and querying
+- 30-day retention configured
+
+**Promtail/FluentBit** (`logging/promtail/`, `logging/fluentbit/`):
+- Log collection agents
+- Kubernetes and application log parsing
 
 ---
 

@@ -1,0 +1,154 @@
+# ===========================================
+# DocuQuery Alert Rules
+# ===========================================
+groups:
+  - name: docuquery-api-alerts
+    rules:
+      # ===========================================
+      # High Error Rate
+      # ===========================================
+      - alert: DocuQueryHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="docuquery-api", status=~"5.."}[5m])) 
+          / 
+          sum(rate(http_requests_total{job="docuquery-api"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "High error rate on DocuQuery API"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # ===========================================
+      # High Latency
+      # ===========================================
+      - alert: DocuQueryHighLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket{job="docuquery-api"}[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High latency on DocuQuery API"
+          description: "95th percentile latency is {{ $value | humanizeDuration }}"
+
+      # ===========================================
+      # API Down
+      # ===========================================
+      - alert: DocuQueryAPIDown
+        expr: up{job="docuquery-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "DocuQuery API is down"
+          description: "DocuQuery API instance {{ $labels.instance }} has been down for more than 1 minute"
+
+      # ===========================================
+      # High Memory Usage
+      # ===========================================
+      - alert: DocuQueryHighMemoryUsage
+        expr: |
+          container_memory_usage_bytes{container="api", namespace=~"docuquery.*"} 
+          / 
+          container_spec_memory_limit_bytes{container="api", namespace=~"docuquery.*"} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage on DocuQuery API"
+          description: "Memory usage is at {{ $value | humanizePercentage }}"
+
+      # ===========================================
+      # High CPU Usage
+      # ===========================================
+      - alert: DocuQueryHighCPUUsage
+        expr: |
+          rate(container_cpu_usage_seconds_total{container="api", namespace=~"docuquery.*"}[5m]) 
+          / 
+          container_spec_cpu_quota{container="api", namespace=~"docuquery.*"} * 100000 > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High CPU usage on DocuQuery API"
+          description: "CPU usage is at {{ $value | humanizePercentage }}"
+
+      # ===========================================
+      # Pod Restarts
+      # ===========================================
+      - alert: DocuQueryPodRestarting
+        expr: increase(kube_pod_container_status_restarts_total{namespace=~"docuquery.*"}[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "DocuQuery pod is restarting frequently"
+          description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour"
+
+  - name: docuquery-llm-alerts
+    rules:
+      # ===========================================
+      # LLM Rate Limit
+      # ===========================================
+      - alert: DocuQueryLLMRateLimited
+        expr: increase(llm_rate_limit_errors_total{job="docuquery-api"}[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "LLM rate limiting detected"
+          description: "{{ $value }} rate limit errors in the last 5 minutes"
+
+      # ===========================================
+      # LLM Timeout
+      # ===========================================
+      - alert: DocuQueryLLMTimeout
+        expr: increase(llm_timeout_errors_total{job="docuquery-api"}[5m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "LLM timeout errors detected"
+          description: "{{ $value }} timeout errors in the last 5 minutes"
+
+  - name: docuquery-qdrant-alerts
+    rules:
+      # ===========================================
+      # Qdrant Down
+      # ===========================================
+      - alert: QdrantDown
+        expr: up{job="qdrant"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Qdrant vector store is down"
+          description: "Qdrant instance {{ $labels.instance }} has been down for more than 1 minute"
+
+      # ===========================================
+      # High Search Latency
+      # ===========================================
+      - alert: QdrantHighSearchLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(qdrant_search_duration_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High search latency on Qdrant"
+          description: "95th percentile search latency is {{ $value | humanizeDuration }}"

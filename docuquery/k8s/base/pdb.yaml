@@ -1,0 +1,13 @@
+# ===========================================
+# Pod Disruption Budget
+# ===========================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: docuquery-api-pdb
+  namespace: docuquery
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: docuquery-api

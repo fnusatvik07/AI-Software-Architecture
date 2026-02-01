@@ -1,0 +1,30 @@
+# ===========================================
+# Kustomization Base
+# ===========================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: docuquery
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - rbac.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - network-policy.yaml
+
+commonLabels:
+  app.kubernetes.io/name: docuquery
+  app.kubernetes.io/managed-by: kustomize
+
+configMapGenerator: []
+
+images:
+  - name: docuquery
+    newName: docuquery
+    newTag: latest

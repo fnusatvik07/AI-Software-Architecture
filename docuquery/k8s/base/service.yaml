@@ -1,0 +1,43 @@
+# ===========================================
+# DocuQuery API Service
+# ===========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: docuquery-api
+  namespace: docuquery
+  labels:
+    app: docuquery-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: docuquery-api
+---
+# ===========================================
+# Qdrant Vector Store Service
+# ===========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant-service
+  namespace: docuquery
+  labels:
+    app: qdrant
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6333
+      targetPort: 6333
+      protocol: TCP
+      name: http
+    - port: 6334
+      targetPort: 6334
+      protocol: TCP
+      name: grpc
+  selector:
+    app: qdrant

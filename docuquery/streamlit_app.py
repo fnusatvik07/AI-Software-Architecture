@@ -1,6 +1,7 @@
 """
-DocuQuery - Stage 3 Development Environment
+DocuQuery - Stage 4 Staging Environment
 A production-ready RAG application with Streamlit UI
+Staging infrastructure with Kubernetes, Helm, and observability
 """
 
 import streamlit as st
@@ -17,8 +18,8 @@ API_BASE_URL = "http://localhost:8000"
 
 # Page Configuration
 st.set_page_config(
-    page_title="DocuQuery | Stage 3 Development",
-    page_icon="🚀",
+    page_title="DocuQuery | Stage 4 Staging",
+    page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -297,8 +298,8 @@ def get_document_stats() -> Dict:
 
 # Sidebar
 with st.sidebar:
-    st.markdown("### 🚀 DocuQuery")
-    st.markdown("**Stage 3: Development**")
+    st.markdown("### 🎯 DocuQuery")
+    st.markdown("**Stage 4: Staging**")
     st.markdown("---")
     
     # API Status
@@ -368,9 +369,9 @@ SCORE_THRESHOLD: 0.3
 # Main Header
 st.markdown("""
 <div class="main-header">
-    <div class="stage-badge">🔷 STAGE 3</div>
-    <h1>DocuQuery Development Environment</h1>
-    <p>Production-ready RAG application with FastAPI, Qdrant, and GPT-4o</p>
+    <div class="stage-badge">🎯 STAGE 4</div>
+    <h1>DocuQuery Staging Environment</h1>
+    <p>Production-ready RAG with Kubernetes, Helm, Prometheus, and Grafana</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -706,13 +707,13 @@ with tab4:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #64748b; font-size: 0.875rem;">
-    <p><strong>DocuQuery</strong> | Stage 3: Development Environment</p>
+    <p><strong>DocuQuery</strong> | Stage 4: Staging Environment</p>
     <p>Part of the AI Software Architecture Workshop</p>
     <p style="margin-top: 0.5rem;">
-        <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">FastAPI</span>
-        <span style="background: #fef3c7; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">OpenAI GPT-4o</span>
-        <span style="background: #d1fae5; color: #065f46; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Qdrant</span>
-        <span style="background: #ede9fe; color: #5b21b6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Pydantic</span>
+        <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Kubernetes</span>
+        <span style="background: #fef3c7; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Helm</span>
+        <span style="background: #d1fae5; color: #065f46; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Prometheus</span>
+        <span style="background: #ede9fe; color: #5b21b6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin: 0 0.25rem;">Grafana</span>
     </p>
 </div>
 """, unsafe_allow_html=True)

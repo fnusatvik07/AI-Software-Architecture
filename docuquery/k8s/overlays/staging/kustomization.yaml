@@ -1,0 +1,47 @@
+# ===========================================
+# Staging Overlay Kustomization
+# ===========================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: docuquery-staging
+
+resources:
+  - ../../base
+
+namePrefix: staging-
+
+commonLabels:
+  environment: staging
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: docuquery-api
+  - patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 5
+    target:
+      kind: HorizontalPodAutoscaler
+      name: docuquery-api-hpa
+
+configMapGenerator:
+  - name: docuquery-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=staging
+      - LOG_LEVEL=DEBUG
+      - QDRANT_COLLECTION=docuquery-staging
+
+images:
+  - name: docuquery
+    newName: ghcr.io/fnusatvik07/docuquery
+    newTag: staging-latest

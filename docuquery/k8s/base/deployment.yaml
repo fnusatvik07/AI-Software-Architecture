@@ -1,0 +1,89 @@
+# ===========================================
+# DocuQuery API Deployment
+# ===========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docuquery-api
+  namespace: docuquery
+  labels:
+    app: docuquery-api
+    app.kubernetes.io/name: docuquery-api
+    app.kubernetes.io/component: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: docuquery-api
+  template:
+    metadata:
+      labels:
+        app: docuquery-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: docuquery-sa
+      containers:
+        - name: api
+          image: docuquery:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          env:
+            - name: ENVIRONMENT
+              value: "staging"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: docuquery-secrets
+                  key: openai-api-key
+            - name: QDRANT_HOST
+              value: "qdrant-service"
+            - name: QDRANT_PORT
+              value: "6333"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - docuquery-api
+                topologyKey: kubernetes.io/hostname

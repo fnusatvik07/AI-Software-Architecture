@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "docuquery.fullname" . }}-config
+  labels:
+    {{- include "docuquery.labels" . | nindent 4 }}
+data:
+  # Application settings
+  APP_NAME: {{ .Values.config.appName | default "DocuQuery" | quote }}
+  ENVIRONMENT: {{ .Values.config.environment | default "staging" | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | default "INFO" | quote }}
+  
+  # API settings
+  API_HOST: {{ .Values.config.api.host | default "0.0.0.0" | quote }}
+  API_PORT: {{ .Values.config.api.port | default "8000" | quote }}
+  API_WORKERS: {{ .Values.config.api.workers | default "4" | quote }}
+  
+  # RAG settings
+  CHUNK_SIZE: {{ .Values.config.rag.chunkSize | default "1000" | quote }}
+  CHUNK_OVERLAP: {{ .Values.config.rag.chunkOverlap | default "200" | quote }}
+  MAX_CHUNKS: {{ .Values.config.rag.maxChunks | default "10" | quote }}
+  
+  # Vector database settings
+  QDRANT_HOST: {{ .Values.config.qdrant.host | default "qdrant" | quote }}
+  QDRANT_PORT: {{ .Values.config.qdrant.port | default "6333" | quote }}
+  QDRANT_COLLECTION: {{ .Values.config.qdrant.collection | default "documents" | quote }}
+  
+  # OpenAI settings
+  OPENAI_MODEL: {{ .Values.config.openai.model | default "gpt-4o" | quote }}
+  EMBEDDING_MODEL: {{ .Values.config.openai.embeddingModel | default "text-embedding-3-small" | quote }}
+  
+  # Rate limiting
+  RATE_LIMIT_REQUESTS: {{ .Values.config.rateLimit.requests | default "100" | quote }}
+  RATE_LIMIT_PERIOD: {{ .Values.config.rateLimit.period | default "60" | quote }}
+  
+  # Observability
+  METRICS_ENABLED: {{ .Values.metrics.enabled | default true | quote }}
+  TRACING_ENABLED: {{ .Values.config.tracing.enabled | default false | quote }}
+  {{- if .Values.config.tracing.enabled }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.tracing.endpoint | quote }}
+  {{- end }}

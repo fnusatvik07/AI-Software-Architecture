@@ -1,0 +1,25 @@
+apiVersion: v2
+name: docuquery
+description: A Helm chart for DocuQuery RAG Application
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - rag
+  - llm
+  - openai
+  - fastapi
+  - qdrant
+
+home: https://github.com/fnusatvik07/AI-Software-Architecture
+
+maintainers:
+  - name: DocuQuery Team
+    email: team@docuquery.dev
+
+dependencies:
+  - name: qdrant
+    version: "0.1.0"
+    repository: "https://qdrant.github.io/qdrant-helm"
+    condition: qdrant.enabled

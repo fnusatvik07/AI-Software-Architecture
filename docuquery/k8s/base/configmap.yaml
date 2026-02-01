@@ -1,0 +1,51 @@
+# ===========================================
+# ConfigMap for Application Configuration
+# ===========================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docuquery-config
+  namespace: docuquery
+data:
+  # Application Settings
+  ENVIRONMENT: "staging"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  
+  # API Configuration
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  API_PREFIX: "/api/v1"
+  
+  # LLM Configuration
+  LLM_PROVIDER: "openai"
+  LLM_MODEL: "gpt-4o"
+  LLM_TEMPERATURE: "0.0"
+  LLM_MAX_TOKENS: "1024"
+  LLM_TIMEOUT: "30"
+  
+  # Embedding Configuration
+  EMBEDDING_MODEL: "text-embedding-3-large"
+  EMBEDDING_DIMENSIONS: "3072"
+  
+  # Vector Store Configuration
+  QDRANT_HOST: "qdrant-service"
+  QDRANT_PORT: "6333"
+  QDRANT_COLLECTION: "docuquery-staging"
+  
+  # Chunking Configuration
+  CHUNK_SIZE: "500"
+  CHUNK_OVERLAP: "50"
+  
+  # Retrieval Configuration
+  RETRIEVAL_TOP_K: "5"
+  RETRIEVAL_SCORE_THRESHOLD: "0.7"
+  
+  # Rate Limiting
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW: "60"
+  
+  # Feature Flags
+  ENABLE_RERANKING: "false"
+  ENABLE_SEMANTIC_CACHE: "false"

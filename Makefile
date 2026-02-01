@@ -39,10 +39,11 @@ help:
 	@echo "  make coverage      Run tests with coverage report"
 	@echo ""
 	@echo "Running:"
-	@echo "  make run           Run FastAPI server (port 8000)"
-	@echo "  make dev           Run FastAPI with auto-reload"
-	@echo "  make streamlit     Run Streamlit app (port 8501)"
-	@echo "  make frontend      Run React frontend (port 5173)"
+	@echo "  make run             Run FastAPI server (port 8000)"
+	@echo "  make dev             Run FastAPI with auto-reload"
+	@echo "  make streamlit       Run Streamlit app (port 8501)"
+	@echo "  make infra-dashboard Run Infrastructure Dashboard (port 8502)"
+	@echo "  make frontend        Run React frontend (port 5173)"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-build  Build Docker image"
@@ -137,6 +138,9 @@ dev:
 
 streamlit:
 	cd $(PROJECT_DIR) && ../$(VENV)/bin/streamlit run streamlit_app.py --server.port 8501
+
+infra-dashboard:
+	cd $(PROJECT_DIR) && ../$(VENV)/bin/streamlit run streamlit_infra.py --server.port 8502
 
 frontend:
 	cd $(PROJECT_DIR)/frontend && npm install && npm run dev

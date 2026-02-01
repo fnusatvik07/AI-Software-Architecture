@@ -1,0 +1,31 @@
+# ===========================================
+# Ingress Configuration
+# ===========================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: docuquery-ingress
+  namespace: docuquery
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+    - hosts:
+        - api.docuquery.staging.example.com
+      secretName: docuquery-tls
+  rules:
+    - host: api.docuquery.staging.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: docuquery-api
+                port:
+                  number: 8000
